@@ -1,5 +1,6 @@
 const User = require('../models/User')
 const bcrypt = require ('bcrypt')
+const { checkout } = require('../routers/UserRouters')
 
 module.exports = class UserController {
     static async register(req, res) {
@@ -58,4 +59,34 @@ module.exports = class UserController {
             res.status(503).json({message: error})
         }
     }
+        static async login(req,res){
+            const{email, password} = req.body 
+
+            if(!email){
+                res.status(422).json({message: 'Email é obrigatorio'})
+                return
+            }
+            if(!password){
+                res.status(422).json({message: 'Senha é obrigatorio'})
+                return
+            }
+            const userExist = await User.findOne({email: email})
+            if(userExist){
+                res.status(401).json({
+                    message:'Nâo autorizado, sem registro'
+                })
+                return
+            }
+            const checkPassword = await bcrypt.compare(password, userExist.password)
+
+            if(checkPassword){
+                res.status(401).json({
+                    message:'Nâo autorizado, sem registro'
+                })
+                return
+            }
+            await createUserToken(userExist, req, res)
+        }
+
 }
+
