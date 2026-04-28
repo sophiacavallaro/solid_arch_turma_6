@@ -1,9 +1,10 @@
 const User = require('../models/User')
 const bcrypt = require ('bcrypt')
-const { checkout } = require('../routers/UserRouters')
+const createUserToken = require('../helpers/create-user-token')
 
 module.exports = class UserController {
     static async register(req, res) {
+
         const {name, email, phone, password,confirmpassword} = req.body
         if(!name){
             res.status(422).json({message: 'Nome é obrigatorio'})
@@ -77,7 +78,7 @@ module.exports = class UserController {
                 })
                 return
             }
-            const checkPassword = await bcrypt.compare(password, userExist.password)
+            const checkPassword = await bcrypt.compare(password, userExist,password)
 
             if(checkPassword){
                 res.status(401).json({
