@@ -1,6 +1,7 @@
 const User = require('../models/User')
 const bcrypt = require ('bcrypt')
 const createUserToken = require('../helpers/create-user-token')
+const getTokens = require ('../helpers/get-tokens')
 
 module.exports = class UserController {
     static async register(req, res) {
@@ -26,12 +27,12 @@ module.exports = class UserController {
             return
         }
 
-        if(confirmpassword){
+        if(!confirmpassword){
             res.status(422).json({message: 'Confirmação de senha é obrigatorio'})
             return
         }
 
-        if(!password !== confirmpassword){
+        if(password !== confirmpassword){
             res.status(422).json({message: 'As senhas não coincidem'})
             return
         }
@@ -53,9 +54,8 @@ module.exports = class UserController {
         })
         try{
             const newUser = await user.save()
-            res.status(201).json({message: 'Usuario criado no Get Pet',
-            newUser
-        }) 
+            await createUserToken (newUser,req,res)
+        
         }catch (error){
             res.status(503).json({message: error})
         }
@@ -78,9 +78,9 @@ module.exports = class UserController {
                 })
                 return
             }
-            const checkPassword = await bcrypt.compare(password, userExist,password)
+            const checkPassword = await bcrypt.compare(password, userExist.password)
 
-            if(checkPassword){
+            if(!checkPassword){
                 res.status(401).json({
                     message:'Nâo autorizado, sem registro'
                 })
@@ -88,6 +88,38 @@ module.exports = class UserController {
             }
             await createUserToken(userExist, req, res)
         }
+    static async checkUser(req,res){
+        let currentUser
 
+        console.log(req.headers.authorization)
+
+        if(req.headers.authorization){
+            const token = getToken(req)
+            const decodeToken = jwt.verify(token,'fatec-turma6-a2026')
+            currentUser = await User.findById(decodeToken.id)
+            currentUser.password = undefined
+
+        }else{
+            currentUser = null
+        }
+        res.status(200).send(currentUser)
+    }
+    static async getUserById(req,res){
+        const id = req.parms.id
+        const user = await User.findById(id)
+
+        if(!user)
+        res.status(404).json({
+        messege:'Usuario não encontrado'
+})
+return
+}
+res.status(200).json(user)
+}
+
+static async editUser(req, res){
+    res.status(200).json({
+        message:'Usuario atualizado com sucesso!'
+    })
 }
 
