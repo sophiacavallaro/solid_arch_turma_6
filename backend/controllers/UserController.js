@@ -1,49 +1,51 @@
 const User = require('../models/User')
-const bcrypt = require ('bcrypt')
+const bcrypt = require('bcrypt')
+const jwt = require('jsonwebtoken')
 const createUserToken = require('../helpers/create-user-token')
-const getTokens = require ('../helpers/get-tokens')
+const getToken = require('../helpers/get-tokens')
 
 module.exports = class UserController {
     static async register(req, res) {
+        const { name, email, phone, password, confirmpassword } = req.body
 
-        const {name, email, phone, password,confirmpassword} = req.body
-        if(!name){
-            res.status(422).json({message: 'Nome é obrigatorio'})
+        if (!name) {
+            res.status(422).json({ message: 'Nome é obrigatorio' })
             return
         }
 
-        if(!email){
-            res.status(422).json({message: 'Email é obrigatorio'})
+        if (!email) {
+            res.status(422).json({ message: 'Email é obrigatorio' })
             return
         }
 
-        if(!phone){
-            res.status(422).json({message: 'Telefone é obrigatorio'})
+        if (!phone) {
+            res.status(422).json({ message: 'Telefone é obrigatorio' })
             return
         }
 
-        if(!password){
-            res.status(422).json({message: 'Senha é obrigatorio'})
+        if (!password) {
+            res.status(422).json({ message: 'Senha é obrigatorio' })
             return
         }
 
-        if(!confirmpassword){
-            res.status(422).json({message: 'Confirmação de senha é obrigatorio'})
+        if (!confirmpassword) {
+            res.status(422).json({ message: 'Confirmação de senha é obrigatorio' })
             return
         }
 
-        if(password !== confirmpassword){
-            res.status(422).json({message: 'As senhas não coincidem'})
-            return
-        }
-        const userExist = await User.findOne({email: email})
-
-        if(userExist){
-            res.status(422).json({message:'O usuario ja existe em nossos registros.'})
+        if (password !== confirmpassword) {
+            res.status(422).json({ message: 'As senhas não coincidem' })
             return
         }
 
-        const salt =await bcrypt.genSalt(12)
+        const userExists = await User.findOne({ email: email })
+
+        if (userExists) {
+            res.status(422).json({ message: 'O usuario ja existe em nossos registros' })
+            return
+        }
+
+        const salt = await bcrypt.genSalt(12)
         const passwordHash = await bcrypt.hash(password, salt)
 
         const user = new User({
@@ -52,74 +54,90 @@ module.exports = class UserController {
             phone,
             password: passwordHash,
         })
-        try{
+
+        try {
             const newUser = await user.save()
-            await createUserToken (newUser,req,res)
-        
-        }catch (error){
-            res.status(503).json({message: error})
+            await createUserToken(newUser, req, res)
+        } catch (error) {
+            res.status(503).json({ message: error })
         }
     }
-        static async login(req,res){
-            const{email, password} = req.body 
 
-            if(!email){
-                res.status(422).json({message: 'Email é obrigatorio'})
-                return
-            }
-            if(!password){
-                res.status(422).json({message: 'Senha é obrigatorio'})
-                return
-            }
-            const userExist = await User.findOne({email: email})
-            if(userExist){
-                res.status(401).json({
-                    message:'Nâo autorizado, sem registro'
-                })
-                return
-            }
-            const checkPassword = await bcrypt.compare(password, userExist.password)
+    static async login(req, res) {
+        const { email, password } = req.body
 
-            if(!checkPassword){
-                res.status(401).json({
-                    message:'Nâo autorizado, sem registro'
-                })
-                return
-            }
-            await createUserToken(userExist, req, res)
+        if (!email) {
+            res.status(422).json({ message: 'Email é obrigatorio' })
+            return
         }
-    static async checkUser(req,res){
+
+
+        if (!password) {
+            res.status(422).json({ message: 'Senha é obrigatorio' })
+            return
+        }
+
+        const userExists = await User.findOne({ email: email })
+
+        if(!userExists){
+            res.status(401).json({ 
+                message: 'Não autorizado sem registro' 
+            })
+            return
+        }
+
+        const checkPassword = await bcrypt.compare(password, userExists.password)
+
+        if(!checkPassword){
+            res.status(401).json({ 
+                message: 'Não autorizado sem registro' 
+            })
+            return
+        }
+
+        await createUserToken(userExists, req, res)
+
+    }
+
+
+    static async checkUser(req, res) {
+
         let currentUser
 
         console.log(req.headers.authorization)
 
-        if(req.headers.authorization){
+        if (req.headers.authorization) {
             const token = getToken(req)
-            const decodeToken = jwt.verify(token,'fatec-turma6-a2026')
-            currentUser = await User.findById(decodeToken.id)
-            currentUser.password = undefined
+            const decoded = jwt.verify(token, 'fatec-turma6-a2026')
 
-        }else{
+            currentUser = await User.findById(decoded.id)
+            currentUser.password = undefined
+        } else {
             currentUser = null
         }
+
         res.status(200).send(currentUser)
     }
-    static async getUserById(req,res){
-        const id = req.parms.id
+
+    static async getUserById(req, res) {
+        const id = req.params.id
+
         const user = await User.findById(id)
 
-        if(!user)
-        res.status(404).json({
-        messege:'Usuario não encontrado'
-})
-return
-}
-res.status(200).json(user)
-}
+        if (!user) {
+            res.status(404).json({
+                message: 'Usuario não encontrado'
+            })
 
-static async editUser(req, res){
-    res.status(200).json({
-        message:'Usuario atualizado com sucesso!'
-    })
-}
+            return
+        }
 
+        res.status(200).json(user)
+    }
+
+    static async editUser(req, res) {
+        res.status(200).json({
+            message: 'Usuario atualizado com sucesso'
+        })
+    }
+}
