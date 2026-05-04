@@ -3,6 +3,7 @@ const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const createUserToken = require('../helpers/create-user-token')
 const getToken = require('../helpers/get-tokens')
+const getUserByToken = require('../helpers/get-user-by-token')
 
 module.exports = class UserController {
     static async register(req, res) {
@@ -134,10 +135,59 @@ module.exports = class UserController {
 
         res.status(200).json(user)
     }
-
+    
     static async editUser(req, res) {
-        res.status(200).json({
-            message: 'Usuario atualizado com sucesso'
-        })
+        const id = req.params.id
+        const{name, email,phone, password, confirmpassword} = req.body
+        let iamge =''
+        const user = await User.findOne(id)
+        if (!name) {
+            res.status(422).json({ message: 'Nome é obrigatorio' })
+            return
+        }
+
+        if (!email) {
+            res.status(422).json({ message: 'Email é obrigatorio' })
+            return
+        }
+
+        if (!phone) {
+            res.status(422).json({ message: 'Telefone é obrigatorio' })
+            return
+        }
+
+        if (!password) {
+            res.status(422).json({ message: 'Senha é obrigatorio' })
+            return
+        }
+
+        if (!confirmpassword) {
+            res.status(422).json({ message: 'Confirmação de senha é obrigatorio' })
+            return
+        }
+
+        if (password !== confirmpassword) {
+            res.status(422).json({ message: 'As senhas não coincidem' })
+            return
+        }
+
+        const userExists = await User.findOne({ email: email })
+
+        if (userExists) {
+            res.status(422).json({ message: 'O usuario ja existe em nossos registros' })
+            return
+        }
+
+        const salt = await bcrypt.genSalt(12)
+        const passwordHash = await bcrypt.hash(password, salt)
+
+
+        if(!user){
+            res.status(422).res.json({
+                message:'Usuário não disponivel para edição'
+            })
+            return
+        }
     }
+
 }
